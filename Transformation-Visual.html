@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Visual Transformations on a Coordinate Grid</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #05070a;
+      --panel: #121826;
+      --accent: #00d3ff;
+      --original: #7a7f92;
+      --text: #f5f7ff;
+      --muted: #a4aec9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #10162a 0, #05070a 60%);
+      color: var(--text);
+    }
+    h1 {
+      text-align: center;
+      margin: 4px 0;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 1.2rem;
+    }
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+    #shell {
+      max-width: 980px;
+      margin: 0 auto;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 800px) {
+      #shell { grid-template-columns: 1fr; }
+    }
+    #canvasPanel, #controlPanel {
+      background: #121826;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 12px;
+    }
+    #gridCanvas {
+      width: 100%;
+      max-width: 480px;
+      display: block;
+      margin: 0 auto;
+      background: #05070a;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.16);
+    }
+    .sectionTitle {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    #buttonsGrid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 6px;
+      margin-bottom: 10px;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      background: rgba(0,211,255,0.08);
+      color: var(--text);
+      border: 1px solid rgba(0,211,255,0.4);
+      transition: transform 0.08s, box-shadow 0.08s, background 0.08s;
+      white-space: nowrap;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      background: rgba(0,211,255,0.18);
+    }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), #4ce1ff);
+      color: #001015;
+      border-color: transparent;
+      font-weight: 600;
+    }
+    button.primary:hover {
+      background: linear-gradient(135deg, #4ce1ff, var(--accent));
+    }
+    button.fullRow { grid-column: span 3; }
+    #legend {
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      gap: 12px;
+      margin-top: 6px;
+      justify-content: center;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      margin-right: 4px;
+    }
+    .dot.current { background: var(--accent); }
+    .dot.original { background: var(--original); }
+    #coordsBox {
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: rgba(0,0,0,0.35);
+      border-radius: 10px;
+      padding: 6px 8px;
+      border: 1px dashed rgba(255,255,255,0.12);
+      max-height: 140px;
+      overflow-y: auto;
+    }
+    #note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Visual Transformations on a Coordinate Grid</h1>
+  <p class="subtitle">
+    Explore how <strong>slides (translations)</strong>, <strong>rotations</strong>, and <strong>reflections</strong> change a shape&#39;s position,
+    while its size and shape stay the same.
+  </p>
+
+  <div id="shell">
+    <div id="canvasPanel">
+      <canvas id="gridCanvas" width="480" height="480"></canvas>
+      <div id="legend">
+        <div><span class="dot original"></span> Original shape</div>
+        <div><span class="dot current"></span> Transformed shape</div>
+      </div>
+    </div>
+
+    <div id="controlPanel">
+      <div>
+        <div class="sectionTitle">Transform the Shape</div>
+        <div id="buttonsGrid">
+          <button onclick="translateShape(0,1)">Slide Up (+y)</button>
+          <button onclick="rotateShape(90)">Rotate 90&deg; CW</button>
+          <button onclick="translateShape(0,-1)">Slide Down (-y)</button>
+
+          <button onclick="translateShape(-1,0)">Slide Left (-x)</button>
+          <button onclick="resetShape()" class="primary">Reset</button>
+          <button onclick="translateShape(1,0)">Slide Right (+x)</button>
+
+          <button onclick="reflectX()">Reflect across x-axis</button>
+          <button onclick="rotateShape(-90)">Rotate 90&deg; CCW</button>
+          <button onclick="reflectY()">Reflect across y-axis</button>
+
+          <button class="fullRow" onclick="rotateShape(180)">Rotate 180&deg;</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sectionTitle">Coordinates of Current Shape</div>
+        <div id="coordsBox"></div>
+        <p id="note">
+          The original and transformed figures have the same side lengths and angles.
+          When two figures are the same size and shape like this, we say they are
+          <strong>congruent</strong>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gridCanvas");
+    const ctx = canvas.getContext("2d");
+    const coordsBox = document.getElementById("coordsBox");
+
+    const size = canvas.width;
+    const gridMin = -10;
+    const gridMax = 10;
+    const unit = size / (gridMax - gridMin); // pixels per 1 unit
+
+    function toScreenX(x) {
+      return (x - gridMin) * unit;
+    }
+    function toScreenY(y) {
+      // y increases upwards in math, but downwards on canvas
+      return (gridMax - y) * unit;
+    }
+
+    // L-shaped polygon (you can replace these coords with any shape you like)
+    const originalShape = [
+      { x: -4, y: 4 },
+      { x: -1, y: 4 },
+      { x: -1, y: 2 },
+      { x: 2,  y: 2 },
+      { x: 2,  y: -1 },
+      { x: -4, y: -1 }
+    ];
+
+    let currentShape = originalShape.map(p => ({...p}));
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+
+      // Background
+      ctx.fillStyle = "#05070a";
+      ctx.fillRect(0, 0, size, size);
+
+      // Grid lines
+      ctx.lineWidth = 1;
+      for (let x = gridMin; x <= gridMax; x++) {
+        ctx.beginPath();
+        ctx.strokeStyle = x === 0 ? "#ffffff" : "rgba(255,255,255,0.12)";
+        ctx.moveTo(toScreenX(x), toScreenY(gridMin));
+        ctx.lineTo(toScreenX(x), toScreenY(gridMax));
+        ctx.stroke();
+      }
+      for (let y = gridMin; y <= gridMax; y++) {
+        ctx.beginPath();
+        ctx.strokeStyle = y === 0 ? "#ffffff" : "rgba(255,255,255,0.12)";
+        ctx.moveTo(toScreenX(gridMin), toScreenY(y));
+        ctx.lineTo(toScreenX(gridMax), toScreenY(y));
+        ctx.stroke();
+      }
+
+      // Axis arrows and labels
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "10px system-ui";
+      // x-axis arrow
+      ctx.beginPath();
+      ctx.moveTo(size - 12, toScreenY(0));
+      ctx.lineTo(size - 4, toScreenY(0) - 4);
+      ctx.lineTo(size - 4, toScreenY(0) + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillText("x", size - 18, toScreenY(0) - 6);
+
+      // y-axis arrow
+      ctx.beginPath();
+      ctx.moveTo(toScreenX(0), 8);
+      ctx.lineTo(toScreenX(0) - 4, 16);
+      ctx.lineTo(toScreenX(0) + 4, 16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillText("y", toScreenX(0) + 6, 16);
+
+      ctx.restore();
+    }
+
+    function drawPolygon(points, strokeStyle, fillStyle) {
+      if (points.length === 0) return;
+      ctx.beginPath();
+      ctx.moveTo(toScreenX(points[0].x), toScreenY(points[0].y));
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(toScreenX(points[i].x), toScreenY(points[i].y));
+      }
+      ctx.closePath();
+      ctx.fillStyle = fillStyle;
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function render() {
+      drawGrid();
+
+      // Draw original (faint)
+      drawPolygon(originalShape, "rgba(180,186,210,0.9)", "rgba(122,127,146,0.15)");
+
+      // Draw current shape
+      drawPolygon(currentShape, "#00d3ff", "rgba(0,211,255,0.18)");
+
+      updateCoordsBox();
+    }
+
+    function updateCoordsBox() {
+      let html = "";
+      currentShape.forEach((p, i) => {
+        html += `Vertex ${i + 1}: ( ${p.x.toFixed(1)}, ${p.y.toFixed(1)} )<br>`;
+      });
+      coordsBox.innerHTML = html;
+    }
+
+    // --- Transformations ---
+
+    function translateShape(dx, dy) {
+      currentShape = currentShape.map(p => ({
+        x: p.x + dx,
+        y: p.y + dy
+      }));
+      render();
+    }
+
+    function rotateShape(deg) {
+      const rad = deg * Math.PI / 180;
+      const cosA = Math.cos(rad);
+      const sinA = Math.sin(rad);
+      currentShape = currentShape.map(p => ({
+        x: +(p.x * cosA - p.y * sinA).toFixed(3),
+        y: +(p.x * sinA + p.y * cosA).toFixed(3)
+      }));
+      render();
+    }
+
+    function reflectX() {
+      // over x-axis: (x, y) -> (x, -y)
+      currentShape = currentShape.map(p => ({
+        x: p.x,
+        y: -p.y
+      }));
+      render();
+    }
+
+    function reflectY() {
+      // over y-axis: (x, y) -> (-x, y)
+      currentShape = currentShape.map(p => ({
+        x: -p.x,
+        y: p.y
+      }));
+      render();
+    }
+
+    function resetShape() {
+      currentShape = originalShape.map(p => ({...p}));
+      render();
+    }
+
+    // Initial draw
+    render();
+  </script>
+</body>
+</html>

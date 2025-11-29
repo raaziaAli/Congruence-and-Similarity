@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rigid Transformations Triangle Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #05070a;
+      --panel: #121826;
+      --accent: #00d3ff;
+      --danger: #ff4b6a;
+      --success: #3fdd78;
+      --text: #f5f7ff;
+      --muted: #a4aec9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #10162a 0, #05070a 60%);
+      color: var(--text);
+    }
+    h1 {
+      text-align: center;
+      margin: 4px 0;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 1.2rem;
+    }
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+    #gameShell {
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+    }
+    #topBar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .badge {
+      background: #121826;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge .label {
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      font-size: 0.7rem;
+    }
+    .badge .value {
+      font-weight: 600;
+    }
+    #gameContainer {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 800px) {
+      #gameContainer { grid-template-columns: 1fr; }
+    }
+    #canvasPanel {
+      background: #121826;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.05);
+      padding: 12px;
+    }
+    #gameCanvas {
+      width: 100%;
+      max-width: 420px;
+      display: block;
+      margin: 0 auto;
+      background: radial-gradient(circle at top, #20263c 0, #05070a 70%);
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    #legend {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    #legend span.dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      margin-right: 4px;
+    }
+    #legend .player .dot { background: var(--accent); }
+    #legend .target .dot { background: var(--danger); }
+
+    #controlPanel {
+      background: #121826;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.05);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sectionTitle {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    #hintText {
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: rgba(0,0,0,0.35);
+      border-radius: 10px;
+      padding: 6px 8px;
+      border: 1px dashed rgba(255,255,255,0.09);
+    }
+    #buttonsGrid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 6px;
+      margin-top: 6px;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      background: rgba(0,211,255,0.08);
+      color: var(--text);
+      border: 1px solid rgba(0,211,255,0.35);
+      transition: transform 0.08s, box-shadow 0.08s, background 0.08s;
+      white-space: nowrap;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      background: rgba(0,211,255,0.18);
+    }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), #4ce1ff);
+      color: #001015;
+      border-color: transparent;
+      font-weight: 600;
+    }
+    button.primary:hover {
+      background: linear-gradient(135deg, #4ce1ff, var(--accent));
+    }
+    button.smallRow { grid-column: span 3; }
+    button.danger {
+      background: rgba(255,75,106,0.12);
+      border-color: rgba(255,75,106,0.7);
+    }
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: #05070a;
+      color: var(--text);
+      padding: 8px;
+      font-size: 0.85rem;
+      resize: vertical;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #05070a;
+      color: #f5f7ff;
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+    }
+    #statusLine {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    #statusText.good { color: var(--success); }
+    #statusText.bad { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <h1>Rigid Transformations -Triangle Game</h1>
+  <p class="subtitle">
+    Use translations, 90&deg; rotations, and reflections (FlipX / FlipY) to make the blue triangle match the red one.
+  </p>
+
+  <div id="gameShell">
+    <div id="topBar">
+      <div class="badge"><span class="label">Puzzle</span> <span class="value" id="levelDisplay">1</span></div>
+      <div class="badge"><span class="label">Score</span> <span class="value" id="scoreDisplay">0</span></div>
+      <div class="badge"><span class="label">Moves</span> <span class="value" id="movesDisplay">0</span></div>
+      <div class="badge">
+        <span class="label">Shape</span>
+        <span class="value">Triangle</span>
+      </div>
+    </div>
+
+    <div id="gameContainer">
+      <div id="canvasPanel">
+        <canvas id="gameCanvas" width="420" height="420"></canvas>
+        <div id="legend">
+          <div class="player"><span class="dot"></span> Your shape</div>
+          <div class="target"><span class="dot"></span> Target shape</div>
+        </div>
+      </div>
+
+      <div id="controlPanel">
+        <div>
+          <div class="sectionTitle">Student Info</div>
+          <input id="studentName" type="text" placeholder="Type your name here" />
+        </div>
+
+        <div>
+          <div class="sectionTitle">Hint</div>
+          <div id="hintText">This puzzle can be solved using: translation.</div>
+        </div>
+
+        <div>
+          <div class="sectionTitle">Controls</div>
+          <div id="buttonsGrid">
+            <button onclick="translateShape(0,-20)">Slide Up</button>
+            <button onclick="rotateShape(90)">Rotate 90 CW</button>
+            <button onclick="translateShape(0,20)">Slide Down</button>
+
+            <button onclick="translateShape(-20,0)">Slide Left</button>
+            <button onclick="reflectFlipX()">Reflect FlipX </button>
+            <button onclick="translateShape(20,0)">Slide Right</button>
+
+            <button onclick="reflectFlipY()">Reflect FlipY</button>
+            <button class="danger" onclick="resetPlayer()">Reset Shape</button>
+            <button onclick="rotateShape(-90)">Rotate 90 CCW</button>
+
+            <button onclick="nextPuzzle()">Next Puzzle</button>
+            <button class="primary smallRow" onclick="checkAnswer()">Check Match</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="sectionTitle">Agent Report</div>
+          <textarea id="answerBox" placeholder="Add your explanation here. The report will also list your moves automatically."></textarea>
+          <button class="primary" style="margin-top:6px;width:100%;" onclick="generateReport()">Generate PDF Report</button>
+          <div id="statusLine">Status: <span id="statusText">Puzzle in progress...</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var canvas = document.getElementById("gameCanvas");
+    var ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      alert("Canvas not supported in this browser.");
+    }
+
+    var levelDisplay = document.getElementById("levelDisplay");
+    var scoreDisplay = document.getElementById("scoreDisplay");
+    var movesDisplay = document.getElementById("movesDisplay");
+    var hintText = document.getElementById("hintText");
+    var statusText = document.getElementById("statusText");
+
+    // Non-symmetric triangle so FlipX / FlipY are clearly visible
+    var TRIANGLE = {
+      points: [
+        { x: -30, y: -40 }, // top-left-ish
+        { x: 50,  y: -10 }, // top-right-ish
+        { x: -10, y: 40 }   // bottom-ish
+      ]
+    };
+
+    // Fixed bank of puzzles using translation, rotation, FlipX, FlipY
+    var PUZZLES = [
+      {
+        dx: 80, dy: 0, rotation: 0,   flipX: false, flipY: false,
+        hint: "Pure translation."
+      },
+      {
+        dx: 40, dy: -40, rotation: 90,  flipX: false, flipY: false,
+        hint: "Translation + 90&deg; rotation."
+      },
+      {
+        dx: -60, dy: 40, rotation: 180, flipX: false, flipY: false,
+        hint: "Translation + 180&deg; rotation."
+      },
+      {
+        dx: 40, dy: 20, rotation: 0,   flipX: true, flipY: false,
+        hint: "Translation + FlipX (left?right reflection)."
+      },
+      {
+        dx: -40, dy: -20, rotation: 0,   flipX: false, flipY: true,
+        hint: "Translation + FlipY (up?down reflection)."
+      },
+      {
+        dx: 40, dy: -40, rotation: 90,  flipX: true, flipY: false,
+        hint: "Translation + 90&deg; rotation + FlipX."
+      }
+    ];
+
+    function createTransform(x, y) {
+      return { x: x, y: y, rotation: 0, flipX: false, flipY: false };
+    }
+
+    function cloneTransform(t) {
+      return {
+        x: t.x,
+        y: t.y,
+        rotation: t.rotation,
+        flipX: t.flipX,
+        flipY: t.flipY
+      };
+    }
+
+    var level = 1;
+    var score = 0;
+    var moves = 0;
+
+    var startPlayer;
+    var player;
+    var target;
+    var logs = [];
+    var currentPuzzleIndex = 0;
+
+    // track moves for the current puzzle
+    var currentMovesLog = [];
+
+    // ---------- Drawing ----------
+    function applyTransformToPoints(points, transform) {
+      var rad = transform.rotation * Math.PI / 180;
+      var cosA = Math.cos(rad);
+      var sinA = Math.sin(rad);
+      var out = [];
+
+      for (var i = 0; i < points.length; i++) {
+        var x = points[i].x;
+        var y = points[i].y;
+
+        if (transform.flipX) x = -x;  // reflect left-right
+        if (transform.flipY) y = -y;  // reflect up-down
+
+        var rx = x * cosA - y * sinA;
+        var ry = x * sinA + y * cosA;
+
+        out.push({ x: rx + transform.x, y: ry + transform.y });
+      }
+      return out;
+    }
+
+    function drawTriangle(transform, color) {
+      var pts = applyTransformToPoints(TRIANGLE.points, transform);
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (var i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function render() {
+      clearCanvas();
+      drawTriangle(target, "#ff4b6a"); // red
+      drawTriangle(player, "#00d3ff"); // blue
+
+      if (checkMatch(false)) {
+        ctx.save();
+        ctx.fillStyle = "#3fdd78";
+        ctx.font = "20px system-ui";
+        ctx.fillText("MATCHED!", 150, 400);
+        ctx.restore();
+      }
+    }
+
+    // ---------- Move logging helpers ----------
+    function logTranslation(dx, dy) {
+      var stepX = dx / 20;
+      var stepY = dy / 20;
+      if (dx > 0) currentMovesLog.push("Slide right " + stepX + " step(s)");
+      if (dx < 0) currentMovesLog.push("Slide left " + (-stepX) + " step(s)");
+      if (dy > 0) currentMovesLog.push("Slide down " + stepY + " step(s)");
+      if (dy < 0) currentMovesLog.push("Slide up " + (-stepY) + " step(s)");
+    }
+
+    function logRotation(deg) {
+      if (deg === 90) currentMovesLog.push("Rotate 90¡ CW");
+      else if (deg === -90) currentMovesLog.push("Rotate 90¡ CCW");
+      else currentMovesLog.push("Rotate " + deg + "¡");
+    }
+
+    function logFlipX() {
+      currentMovesLog.push("Reflect FlipX (left?right)");
+    }
+
+    function logFlipY() {
+      currentMovesLog.push("Reflect FlipY (up?down)");
+    }
+
+    // ---------- Transform controls ----------
+    function translateShape(dx, dy) {
+      moves++;
+      player.x += dx;
+      player.y += dy;
+      logTranslation(dx, dy);
+      updateUI();
+      render();
+    }
+
+    function rotateShape(deg) {
+      moves++;
+      player.rotation = (player.rotation + deg) % 360;
+      if (player.rotation < 0) player.rotation += 360;
+      logRotation(deg);
+      updateUI();
+      render();
+    }
+
+    function reflectFlipX() {
+      moves++;
+      player.flipX = !player.flipX;
+      logFlipX();
+      updateUI();
+      render();
+    }
+
+    function reflectFlipY() {
+      moves++;
+      player.flipY = !player.flipY;
+      logFlipY();
+      updateUI();
+      render();
+    }
+
+    function resetPlayer() {
+      player = cloneTransform(startPlayer);
+      moves = 0;
+      currentMovesLog = [];
+      updateUI();
+      setStatus("Shape reset. Try again.", "neutral");
+      render();
+    }
+
+    // ---------- Coordinate-based match with vertex sorting ----------
+    function sortPoints(pts) {
+      var copy = pts.slice();
+      copy.sort(function(a, b) {
+        if (a.x === b.x) return a.y - b.y;
+        return a.x - b.x;
+      });
+      return copy;
+    }
+
+    function coordinatesMatch() {
+      var pPts = sortPoints(applyTransformToPoints(TRIANGLE.points, player));
+      var tPts = sortPoints(applyTransformToPoints(TRIANGLE.points, target));
+
+      if (pPts.length !== tPts.length) return false;
+
+      var TOL = 2; // pixels
+      for (var i = 0; i < pPts.length; i++) {
+        var dx = pPts[i].x - tPts[i].x;
+        var dy = pPts[i].y - tPts[i].y;
+        var dist2 = dx * dx + dy * dy;
+        if (dist2 > TOL * TOL) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function checkMatch(updateStatus) {
+      if (updateStatus === undefined) updateStatus = true;
+      var matched = coordinatesMatch();
+      if (updateStatus) {
+        if (matched) {
+          setStatus("Perfect match! Congruent shapes achieved.", "good");
+        } else {
+          setStatus("Not a perfect match yet. Keep adjusting!", "bad");
+        }
+      }
+      return matched;
+    }
+
+    function checkAnswer() {
+      if (checkMatch(true)) {
+        completePuzzle();
+      }
+    }
+
+    // ---------- Puzzle handling ----------
+    function loadPuzzle(index, resetLevel) {
+      if (resetLevel) {
+        level = 1;
+        score = 0;
+        logs = [];
+      }
+      moves = 0;
+      currentMovesLog = [];
+      currentPuzzleIndex = index % PUZZLES.length;
+
+      var p = PUZZLES[currentPuzzleIndex];
+
+      startPlayer = createTransform(120, 200);
+      player = cloneTransform(startPlayer);
+
+      target = {
+        x: startPlayer.x + p.dx,
+        y: startPlayer.y + p.dy,
+        rotation: p.rotation,
+        flipX: p.flipX,
+        flipY: p.flipY
+      };
+
+      hintText.textContent = "This puzzle can be solved using: " + p.hint;
+      updateUI();
+      setStatus("Puzzle in progress...", "neutral");
+      render();
+    }
+
+    function nextPuzzle() {
+      level++;
+      loadPuzzle(currentPuzzleIndex + 1, false);
+    }
+
+    // ---------- Progress + PDF ----------
+    function completePuzzle() {
+      var bonus = 10 + Math.max(0, 8 - moves);
+      var reportText = document.getElementById("answerBox").value.trim();
+
+      logs.push({
+        puzzle: level,
+        shape: "Triangle",
+        moves: moves,
+        scoreAfter: score + bonus,
+        report: reportText,
+        movesTrace: currentMovesLog.slice()
+      });
+
+      document.getElementById("answerBox").value = "";
+      score += bonus;
+      updateUI();
+      setStatus("Nice work! You solved this puzzle.", "good");
+    }
+
+    function updateUI() {
+      levelDisplay.textContent = String(level);
+      scoreDisplay.textContent = String(score);
+      movesDisplay.textContent = String(moves);
+    }
+
+    function setStatus(msg, type) {
+      statusText.textContent = msg;
+      statusText.classList.remove("good");
+      statusText.classList.remove("bad");
+      if (type === "good") statusText.classList.add("good");
+      if (type === "bad") statusText.classList.add("bad");
+    }
+
+    function escapeHTML(text) {
+      if (!text) return "";
+      return text.replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;");
+    }
+
+    function generateReport() {
+      var nameInput = document.getElementById("studentName");
+      var studentName = (nameInput && nameInput.value.trim()) || "Unknown Agent";
+      var lastReport = document.getElementById("answerBox").value || "";
+
+      var win = window.open("", "_blank");
+      win.document.write("<!DOCTYPE html><html><head><title>" +
+        escapeHTML(studentName) +
+        " - Rigid Transformations Report</title><style>" +
+        "body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; padding: 24px; }" +
+        "h1 { font-size: 20px; margin-bottom: 4px; }" +
+        "h2 { font-size: 16px; margin-top: 16px; }" +
+        "p { font-size: 13px; }" +
+        "table { border-collapse: collapse; width: 100%; margin-top: 8px; font-size: 12px; }" +
+        "th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; }" +
+        "th { background: #eee; }" +
+        "pre { border: 1px solid #bbb; padding: 8px; background: #f9f9f9; font-size: 12px; white-space: pre-wrap; }" +
+        "</style></head><body>");
+      win.document.write("<h1>Rigid Transformations Spy Mission Report</h1>");
+      win.document.write("<p><strong>Student:</strong> " + escapeHTML(studentName) + "</p>");
+      win.document.write("<p><strong>Final Score:</strong> " + score + "</p>");
+
+      win.document.write("<h2>Puzzle Summary</h2>");
+      win.document.write("<table><thead><tr><th>#</th><th>Shape</th><th>Moves Count</th><th>Score After</th><th>Moves Performed</th><th>Report Snippet</th></tr></thead><tbody>");
+      if (logs.length === 0) {
+        win.document.write("<tr><td colspan=\"6\">No puzzles solved yet.</td></tr>");
+      } else {
+        for (var i = 0; i < logs.length; i++) {
+          var entry = logs[i];
+          var snippet = (entry.report || "").slice(0, 80);
+          var movesJoined = (entry.movesTrace || []).join(" ? ");
+          win.document.write(
+            "<tr><td>" + (i + 1) + "</td><td>" +
+            escapeHTML(entry.shape) + "</td><td>" +
+            entry.moves + "</td><td>" +
+            entry.scoreAfter + "</td><td>" +
+            escapeHTML(movesJoined) + "</td><td>" +
+            escapeHTML(snippet) + "</td></tr>"
+          );
+        }
+      }
+      win.document.write("</tbody></table>");
+
+      win.document.write("<h2>Most Recent Full Agent Explanation</h2>");
+      win.document.write("<pre>" + escapeHTML(lastReport) + "</pre>");
+      win.document.write("<p style=\"font-size:11px;margin-top:16px;\">Teacher note: Use your browser's Print ? Save as PDF to collect this report.</p>");
+      win.document.write("</body></html>");
+      win.document.close();
+      win.focus();
+      win.print();
+    }
+
+    // Start with first puzzle
+    loadPuzzle(0, true);
+  </script>
+</body>
+</html>
