@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rigid Motions Lab – Dynamic Sequencing</title>
+  <style>
+    :root{
+      --bg:#f6f8fb; --card:#ffffff; --ink:#0f172a; --muted:#475569;
+      --brand:#1f4e79; --brand2:#0b3a63; --warn:#fff3cd; --line:#e5e7eb;
+      --good:#047857; --bad:#b91c1c;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,var(--brand),var(--brand2));color:#fff;padding:12px 14px}
+    header h1{margin:0;font-size:18px;line-height:1.2}
+    header p{margin:6px 0 0;font-size:13px;opacity:.95}
+
+    .wrap{max-width:1180px;margin:0 auto;padding:12px}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media (min-width: 980px){.grid{grid-template-columns: 1.25fr .75fr}}
+
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 20px rgba(15,23,42,.06);overflow:hidden}
+    .card h2{margin:0;padding:12px 14px;border-bottom:1px solid var(--line);font-size:16px;color:var(--brand)}
+    .card .body{padding:12px 14px}
+
+    .mini{font-size:12px;color:var(--muted)}
+    .hint{margin:8px 0 0;color:var(--muted);font-size:13px}
+
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    button{border:0;border-radius:12px;padding:10px 12px;font-weight:650;cursor:pointer;background:var(--brand);color:#fff;font-size:14px}
+    button:active{transform:translateY(1px)}
+    button.secondary{background:#64748b}
+    button.ghost{background:#eef2ff;color:#1e293b}
+    button:disabled{opacity:.55;cursor:not-allowed}
+
+    .pillbar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#f1f5f9;color:var(--muted);font-size:12px}
+
+    .svgBox{width:100%;aspect-ratio: 16/10;min-height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#fafafa}
+    @media (max-width:520px){
+      .svgBox{aspect-ratio: 4/3;min-height:340px}
+      button{flex:1;min-width:140px}
+      .controls{grid-template-columns: 1fr}
+    }
+
+    .controls{display:grid;grid-template-columns: 1fr 1fr;gap:10px;margin-top:10px}
+    .panel{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+    .panel h3{margin:0 0 8px;font-size:13px;color:#0f172a}
+    label{font-size:12px;color:var(--muted)}
+    input[type="range"], input[type="number"], select{width:100%}
+    input[type="number"], select{padding:10px;border-radius:12px;border:1px solid var(--line);font-size:14px}
+
+    .teacher{background:var(--warn)}
+    table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:#fff}
+    th,td{padding:10px 10px;border-bottom:1px solid var(--line);font-size:13px;text-align:left}
+    th{background:#f8fafc;color:#0f172a}
+    tr:last-child td{border-bottom:0}
+    .score{font-weight:800}
+    .ok{color:var(--good)}
+    .no{color:var(--bad)}
+
+    .toggle{margin-left:auto;display:flex;gap:8px}
+    .tag{padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:12px}
+
+    .seq{max-height:220px;overflow:auto;border-radius:12px;border:1px solid var(--line);background:#fff}
+    .seq .item{padding:10px;border-bottom:1px solid var(--line);font-size:13px;display:flex;justify-content:space-between;gap:10px}
+    .seq .item:last-child{border-bottom:0}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-size:12px;color:#334155}
+
+    .nav{position:sticky;bottom:0;z-index:9;background:rgba(246,248,251,.92);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:10px 12px}
+    .nav .row{justify-content:space-between}
+    .nav button{flex:1}
+    .nav .ghost{flex:.8}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="row" style="align-items:flex-start">
+        <div>
+          <h1>Rigid Motions Lab – Dynamic Sequencing</h1>
+          <p>Apply many rigid motions and try to match the target image.</p>
+        </div>
+        <div class="toggle">
+          <span class="tag" id="modeTag">Student View</span>
+          <button class="ghost" onclick="toggleTeacher()" aria-label="Toggle teacher dashboard">Teacher</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="grid">
+      <!-- STUDENT LAB -->
+      <div class="card" id="studentCard">
+        <h2>Student Lab</h2>
+        <div class="body">
+          <div class="pillbar">
+            <span class="pill">Tap a tool</span>
+            <span class="pill">Apply it</span>
+            <span class="pill">Match the target</span>
+            <span class="pill">Explain why it works</span>
+          </div>
+
+          <div class="mini">Goal: Transform the <b>orange</b> shape to land exactly on the <b>purple target</b>. Rigid motions keep lengths & angles the same.</div>
+          <div class="hint" id="statusMsg">Tip: Start with a translation to get close, then rotate/reflect.</div>
+
+          <svg id="svgStage" class="svgBox" viewBox="-10 -8 22 16" preserveAspectRatio="xMidYMid meet" aria-label="Rigid motions stage">
+            <defs>
+              <marker id="axisArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#111827"></path>
+              </marker>
+            </defs>
+
+            <!-- World is flipped so +y goes up like a math grid -->
+            <g id="world" transform="scale(1,-1)">
+              <!-- grid (always visible) -->
+              <g id="gridLines" stroke="#e5e7eb" stroke-width="0.03">
+                <!-- vertical lines x=-10..12 -->
+                <line x1="-10" y1="-8" x2="-10" y2="8"/><line x1="-9" y1="-8" x2="-9" y2="8"/>
+                <line x1="-8" y1="-8" x2="-8" y2="8"/><line x1="-7" y1="-8" x2="-7" y2="8"/>
+                <line x1="-6" y1="-8" x2="-6" y2="8"/><line x1="-5" y1="-8" x2="-5" y2="8"/>
+                <line x1="-4" y1="-8" x2="-4" y2="8"/><line x1="-3" y1="-8" x2="-3" y2="8"/>
+                <line x1="-2" y1="-8" x2="-2" y2="8"/><line x1="-1" y1="-8" x2="-1" y2="8"/>
+                <line x1="0" y1="-8" x2="0" y2="8"/><line x1="1" y1="-8" x2="1" y2="8"/>
+                <line x1="2" y1="-8" x2="2" y2="8"/><line x1="3" y1="-8" x2="3" y2="8"/>
+                <line x1="4" y1="-8" x2="4" y2="8"/><line x1="5" y1="-8" x2="5" y2="8"/>
+                <line x1="6" y1="-8" x2="6" y2="8"/><line x1="7" y1="-8" x2="7" y2="8"/>
+                <line x1="8" y1="-8" x2="8" y2="8"/><line x1="9" y1="-8" x2="9" y2="8"/>
+                <line x1="10" y1="-8" x2="10" y2="8"/><line x1="11" y1="-8" x2="11" y2="8"/>
+                <line x1="12" y1="-8" x2="12" y2="8"/>
+
+                <!-- horizontal lines y=-8..8 -->
+                <line x1="-10" y1="-8" x2="12" y2="-8"/><line x1="-10" y1="-7" x2="12" y2="-7"/>
+                <line x1="-10" y1="-6" x2="12" y2="-6"/><line x1="-10" y1="-5" x2="12" y2="-5"/>
+                <line x1="-10" y1="-4" x2="12" y2="-4"/><line x1="-10" y1="-3" x2="12" y2="-3"/>
+                <line x1="-10" y1="-2" x2="12" y2="-2"/><line x1="-10" y1="-1" x2="12" y2="-1"/>
+                <line x1="-10" y1="0" x2="12" y2="0"/><line x1="-10" y1="1" x2="12" y2="1"/>
+                <line x1="-10" y1="2" x2="12" y2="2"/><line x1="-10" y1="3" x2="12" y2="3"/>
+                <line x1="-10" y1="4" x2="12" y2="4"/><line x1="-10" y1="5" x2="12" y2="5"/>
+                <line x1="-10" y1="6" x2="12" y2="6"/><line x1="-10" y1="7" x2="12" y2="7"/>
+                <line x1="-10" y1="8" x2="12" y2="8"/>
+              </g>
+
+              <!-- axes with arrowheads -->
+              <g stroke="#111827" stroke-width="0.08">
+                <line x1="-10" y1="0" x2="12" y2="0" marker-end="url(#axisArrow)"/>
+                <line x1="0" y1="-8" x2="0" y2="8" marker-end="url(#axisArrow)"/>
+              </g>
+
+              <!-- ticks -->
+              <g stroke="#111827" stroke-width="0.06">
+                <!-- x-axis ticks (every 1) -->
+                <line x1="-10" y1="-0.18" x2="-10" y2="0.18"/>
+                <line x1="-9" y1="-0.18" x2="-9" y2="0.18"/>
+                <line x1="-8" y1="-0.18" x2="-8" y2="0.18"/>
+                <line x1="-7" y1="-0.18" x2="-7" y2="0.18"/>
+                <line x1="-6" y1="-0.18" x2="-6" y2="0.18"/>
+                <line x1="-5" y1="-0.28" x2="-5" y2="0.28"/>
+                <line x1="-4" y1="-0.18" x2="-4" y2="0.18"/>
+                <line x1="-3" y1="-0.18" x2="-3" y2="0.18"/>
+                <line x1="-2" y1="-0.18" x2="-2" y2="0.18"/>
+                <line x1="-1" y1="-0.18" x2="-1" y2="0.18"/>
+                <line x1="0" y1="-0.28" x2="0" y2="0.28"/>
+                <line x1="1" y1="-0.18" x2="1" y2="0.18"/>
+                <line x1="2" y1="-0.18" x2="2" y2="0.18"/>
+                <line x1="3" y1="-0.18" x2="3" y2="0.18"/>
+                <line x1="4" y1="-0.18" x2="4" y2="0.18"/>
+                <line x1="5" y1="-0.28" x2="5" y2="0.28"/>
+                <line x1="6" y1="-0.18" x2="6" y2="0.18"/>
+                <line x1="7" y1="-0.18" x2="7" y2="0.18"/>
+                <line x1="8" y1="-0.18" x2="8" y2="0.18"/>
+                <line x1="9" y1="-0.18" x2="9" y2="0.18"/>
+                <line x1="10" y1="-0.28" x2="10" y2="0.28"/>
+                <line x1="11" y1="-0.18" x2="11" y2="0.18"/>
+                <line x1="12" y1="-0.18" x2="12" y2="0.18"/>
+
+                <!-- y-axis ticks (every 1) -->
+                <line x1="-0.18" y1="-8" x2="0.18" y2="-8"/>
+                <line x1="-0.18" y1="-7" x2="0.18" y2="-7"/>
+                <line x1="-0.18" y1="-6" x2="0.18" y2="-6"/>
+                <line x1="-0.18" y1="-5" x2="0.28" y2="-5"/>
+                <line x1="-0.18" y1="-4" x2="0.18" y2="-4"/>
+                <line x1="-0.18" y1="-3" x2="0.18" y2="-3"/>
+                <line x1="-0.18" y1="-2" x2="0.18" y2="-2"/>
+                <line x1="-0.18" y1="-1" x2="0.18" y2="-1"/>
+                <line x1="-0.28" y1="0" x2="0.28" y2="0"/>
+                <line x1="-0.18" y1="1" x2="0.18" y2="1"/>
+                <line x1="-0.18" y1="2" x2="0.18" y2="2"/>
+                <line x1="-0.18" y1="3" x2="0.18" y2="3"/>
+                <line x1="-0.18" y1="4" x2="0.18" y2="4"/>
+                <line x1="-0.28" y1="5" x2="0.28" y2="5"/>
+                <line x1="-0.18" y1="6" x2="0.18" y2="6"/>
+                <line x1="-0.18" y1="7" x2="0.18" y2="7"/>
+                <line x1="-0.18" y1="8" x2="0.18" y2="8"/>
+              </g>
+
+              <!-- shapes (target + current) -->
+              <path id="ghostPath" d="" fill="rgba(147,51,234,.12)" stroke="rgba(147,51,234,.65)" stroke-width="0.15" stroke-dasharray="0.4 0.3" />
+              <path id="polyPath" d="" fill="rgba(255,193,7,.55)" stroke="#b45309" stroke-width="0.2" />
+
+              <circle id="tapCenterDot" cx="0" cy="0" r="0.18" fill="#1f4e79" opacity="0" />
+              <text id="tapCenterLbl" x="0" y="0" font-size="0.7" font-weight="700" fill="#1f4e79" opacity="0" transform="scale(1,-1)">Center</text>
+            </g>
+
+          <!-- labels (screen-oriented, so +y is up logically) -->
+          <g fill="#111827" font-size="0.55" font-weight="650">
+            <!-- x tick labels (every 2) -->
+            <text x="-10" y="0.8" text-anchor="middle">-10</text>
+            <text x="-8" y="0.8" text-anchor="middle">-8</text>
+            <text x="-6" y="0.8" text-anchor="middle">-6</text>
+            <text x="-4" y="0.8" text-anchor="middle">-4</text>
+            <text x="-2" y="0.8" text-anchor="middle">-2</text>
+            <text x="2" y="0.8" text-anchor="middle">2</text>
+            <text x="4" y="0.8" text-anchor="middle">4</text>
+            <text x="6" y="0.8" text-anchor="middle">6</text>
+            <text x="8" y="0.8" text-anchor="middle">8</text>
+            <text x="10" y="0.8" text-anchor="middle">10</text>
+            <text x="12" y="0.8" text-anchor="middle">12</text>
+
+            <!-- y tick labels (every 2) -->
+            <text x="-0.75" y="8" dominant-baseline="middle">-8</text>
+            <text x="-0.75" y="6" dominant-baseline="middle">-6</text>
+            <text x="-0.75" y="4" dominant-baseline="middle">-4</text>
+            <text x="-0.75" y="2" dominant-baseline="middle">-2</text>
+            <text x="-0.75" y="-2" dominant-baseline="middle">2</text>
+            <text x="-0.75" y="-4" dominant-baseline="middle">4</text>
+            <text x="-0.75" y="-6" dominant-baseline="middle">6</text>
+            <text x="-0.75" y="-8" dominant-baseline="middle">8</text>
+          </g>
+
+          <!-- axis labels -->
+          <g fill="#111827" font-size="0.7" font-weight="700">
+            <text x="11.5" y="-0.5">x</text>
+            <text x="0.35" y="-7.4">y</text>
+          </g>
+
+          </svg>
+
+          <div class="controls">
+            <div class="panel">
+              <h3>Translate</h3>
+              <div class="row">
+                <div style="flex:1">
+                  <label>dx</label>
+                  <input id="dx" type="number" value="1" step="1" />
+                </div>
+                <div style="flex:1">
+                  <label>dy</label>
+                  <input id="dy" type="number" value="0" step="1" />
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <button onclick="doTranslate()">Apply</button>
+              </div>
+              <div class="mini">Moves every point by the same vector <dx,dy>.</div>
+            </div>
+
+            <div class="panel">
+              <h3>Rotate</h3>
+              <label>Angle (degrees)</label>
+              <input id="ang" type="range" min="-180" max="180" value="90" />
+              <div class="row" style="justify-content:space-between">
+                <span class="mini">-180</span>
+                <span class="kbd" id="angVal">90 deg</span>
+                <span class="mini">180</span>
+              </div>
+              <label style="margin-top:8px;display:block">Center</label>
+              <select id="centerSel">
+                <option value="origin">Origin (0,0)</option>
+                <option value="centroid">Shape center</option>
+                <option value="tap">Tap a center on the grid</option>
+              </select>
+              <div class="row" style="margin-top:8px">
+                <button onclick="doRotate()">Apply</button>
+              </div>
+              <div class="mini">Tap-center mode: tap the grid, then rotate.</div>
+            </div>
+
+            <div class="panel">
+              <h3>Reflect</h3>
+              <div class="row">
+                <button onclick="doReflect('x')">Over x-axis</button>
+                <button onclick="doReflect('y')">Over y-axis</button>
+              </div>
+              <label style="margin-top:8px;display:block">Custom line</label>
+              <div class="row">
+                <div style="flex:1">
+                  <select id="lineSel">
+                    <option value="y_eq_x">Line y = x</option>
+                    <option value="y_eq_negx">Line y = -x</option>
+                    <option value="vertical">Vertical line x = a</option>
+                    <option value="horizontal">Horizontal line y = b</option>
+                  </select>
+                </div>
+                <div style="flex:1">
+                  <input id="ab" type="number" value="0" step="1" />
+                </div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <button onclick="doReflect('custom')">Apply</button>
+              </div>
+            </div>
+
+            <div class="panel">
+              <h3>Sequence</h3>
+              <div class="row">
+                <button class="secondary" onclick="undo()">Undo</button>
+                <button class="secondary" onclick="resetAll()">Reset</button>
+                <button onclick="checkMatch()">Check</button>
+              </div>
+              <div class="mini">Your moves (latest on top):</div>
+              <div class="seq" id="seqList"></div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px" class="panel">
+            <h3>One-line explanation</h3>
+            <div class="row">
+              <select id="explain" style="flex:1">
+                <option value="">Rigid motions keep…</option>
+                <option value="both">Lengths and angles (congruence)</option>
+                <option value="length">Only lengths</option>
+                <option value="angle">Only angles</option>
+              </select>
+              <button onclick="submitExplain()">Submit</button>
+            </div>
+            <div class="hint" id="explainMsg"></div>
+          </div>
+
+<!-- Lab Activity (5 tasks) -->
+          <div class="panel" style="margin:10px 0 12px">
+            <h3>Lab Activity (5 tasks)</h3>
+            <div class="mini">Goal: map rectangle ABCD (orange) to A'B'C'D' (purple). Keep your steps short. Please use three different sequences of transformations to map the two triangles.</div>
+
+            <div class="seq" id="taskList" style="margin-top:8px">
+              <div class="item"><span><b>1)</b> Map ABCD to A'B'C'D' using a sequence of rigid motions.</span><span class="kbd" id="t1">Not checked</span></div>
+              <div class="item"><span><b>2)</b> Use at least 2 different motion types (translate/rotate/reflect).</span><span class="kbd" id="t2">Not checked</span></div>
+              <div class="item"><span><b>3)</b> Invariants: select what rigid motions preserve.</span><span class="kbd" id="t3">Not checked</span></div>
+              <div class="item"><span><b>4)</b> Congruence proof (fill the blanks).</span><span class="kbd" id="t4">Not checked</span></div>
+              <div class="item"><span><b>5)</b> Order matters: answer the question.</span><span class="kbd" id="t5">Not checked</span></div>
+            </div>
+
+            <div style="margin-top:10px" class="controls">
+              <div class="panel">
+                <h3>Task 3: Invariants</h3>
+                <div class="mini">Choose all that stay the same.</div>
+                <div style="margin-top:8px">
+                  <label><input type="checkbox" id="inv_len"> Side lengths</label><br>
+                  <label><input type="checkbox" id="inv_ang"> Angle measures</label><br>
+                  <label><input type="checkbox" id="inv_area"> Area</label><br>
+                  <label><input type="checkbox" id="inv_orient"> Orientation (clockwise/counterclockwise)</label>
+                </div>
+                <div class="row" style="margin-top:10px">
+                  <button class="secondary" onclick="checkTask3()">Check</button>
+                </div>
+              </div>
+
+              <div class="panel">
+                <h3>Task 4: Congruence proof</h3>
+                <div class="mini">Keep it short. Use words, not symbols.</div>
+                <div style="margin-top:8px">
+                  <label class="mini">(a) We mapped ABCD to A'B'C'D' using:</label>
+                  <input id="proof_moves" type="text" placeholder="e.g., translate then rotate" />
+                  <div style="height:8px"></div>
+                  <label class="mini">(b) Rigid motions preserve:</label>
+                  <input id="proof_preserve" type="text" placeholder="e.g., lengths and angles" />
+                  <div style="height:8px"></div>
+                  <label class="mini">(c) Therefore ABCD is:</label>
+                  <input id="proof_claim" type="text" placeholder="e.g., congruent to A'B'C'D'" />
+                </div>
+                <div class="row" style="margin-top:10px">
+                  <button class="secondary" onclick="checkTask4()">Check</button>
+                </div>
+              </div>
+
+              <div class="panel">
+                <h3>Task 5: Order matters</h3>
+                <div class="mini">If you swap the order of two moves, do you always get the same image?</div>
+                <div style="margin-top:8px">
+                  <label><input type="radio" name="ord" value="yes"> Yes, always</label><br>
+                  <label><input type="radio" name="ord" value="no"> No, not always</label>
+                </div>
+                <div style="margin-top:8px" class="mini">Why? (one line)</div>
+                <input id="ord_why" type="text" placeholder="e.g., some moves do not commute" />
+                <div class="row" style="margin-top:10px">
+                  <button class="secondary" onclick="checkTask5()">Check</button>
+                </div>
+              </div>
+
+              <div class="panel">
+                <h3>Task 1-2: Check mapping</h3>
+                <div class="mini">When you think you matched the target, press Check.</div>
+                <div class="row" style="margin-top:10px">
+                  <button onclick="checkAllTasks()">Check All</button>
+                </div>
+                <div class="hint" id="taskMsg"></div>
+              </div>
+            </div>
+          </div>
+
+
+
+          
+
+        </div>
+      </div>
+
+      <!-- TEACHER DASHBOARD -->
+      <div class="card teacher" id="teacherCard" style="display:none">
+        <h2>Teacher Dashboard</h2>
+        <div class="body">
+          <div class="mini">Auto rubric tracks: reaching target, efficient sequencing, and concept check.</div>
+          <div style="height:10px"></div>
+
+          <table>
+            <thead>
+              <tr><th>Criterion</th><th>Evidence (auto)</th><th>Points</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Target matched</td>
+                <td id="evA">-</td>
+                <td><span class="score" id="ptA">0</span>/4</td>
+              </tr>
+              <tr>
+                <td>Uses 2+ different rigid motions</td>
+                <td id="evB">-</td>
+                <td><span class="score" id="ptB">0</span>/2</td>
+              </tr>
+              <tr>
+                <td>Efficient sequence</td>
+                <td id="evC">-</td>
+                <td><span class="score" id="ptC">0</span>/1</td>
+              </tr>
+              <tr>
+                <td>Explains invariant correctly</td>
+                <td id="evD">-</td>
+                <td><span class="score" id="ptD">0</span>/1</td>
+              </tr>
+              <tr>
+                <td><b>Total</b></td>
+                <td class="mini">Updates live</td>
+                <td><b><span class="score" id="total">0</span>/8</b></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="height:12px"></div>
+          <div class="row">
+            <button class="secondary" onclick="unlockHint()">Unlock Hint</button>
+            <button class="secondary" onclick="freezeAll()">Freeze</button>
+            <button onclick="exportLog()">Export Log</button>
+          </div>
+          <pre id="logOut" class="mini" style="margin-top:10px;white-space:pre-wrap"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div class="wrap"><div class="row">
+      <button class="ghost" onclick="scrollToTop()">Top</button>
+      <button onclick="checkMatch()">Check Match</button>
+    </div></div>
+  </div>
+
+<script>
+  // =====================
+  // Teacher toggle
+  // =====================
+  let teacherOn=false;
+  function toggleTeacher(){
+    teacherOn=!teacherOn;
+    document.getElementById('teacherCard').style.display = teacherOn ? 'block' : 'none';
+    document.getElementById('modeTag').textContent = teacherOn ? 'Teacher View' : 'Student View';
+    if(teacherOn) updateRubric();
+  }
+  function scrollToTop(){ window.scrollTo({top:0, behavior:'smooth'}); }
+
+  // =====================
+  // Logging
+  // =====================
+  const log = { startedAt:new Date().toISOString(), events:[], hintsUnlocked:false, frozen:false, explain:null };
+  function pushEvent(type,data={}){ log.events.push({t:new Date().toISOString(), type, ...data}); }
+
+  // =====================
+  // Geometry data (edit these to match worksheet)
+  // =====================
+  const basePts = [ [-6,6],[-3,6],[-3,3],[-6,3] ];
+  function makeTarget(){
+    // default target: reflect over y then translate +6 in x
+    return basePts.map(([x,y])=>[-x,y]).map(([x,y])=>[x+6,y]);
+  }
+
+  let currentPts = basePts.map(p=>[...p]);
+  let targetPts  = makeTarget();
+  let seq = [];
+  let tapCenter = null;
+
+  // =====================
+  // SVG helpers
+  // =====================
+  const svg = document.getElementById('svgStage');
+  const ghostPath = document.getElementById('ghostPath');
+  const polyPath  = document.getElementById('polyPath');
+  const tapDot    = document.getElementById('tapCenterDot');
+  const tapLbl    = document.getElementById('tapCenterLbl');
+
+  function pathFromPts(pts){
+    return pts.map((p,i)=> (i?'L':'M') + p[0] + ' ' + p[1]).join(' ') + ' Z';
+  }
+  function centroid(pts){
+    let sx=0, sy=0;
+    for(const [x,y] of pts){ sx+=x; sy+=y; }
+    return [sx/pts.length, sy/pts.length];
+  }
+  function round1(n){ return Math.round(n*10)/10; }
+
+  function redraw(){
+    ghostPath.setAttribute('d', pathFromPts(targetPts));
+    polyPath.setAttribute('d', pathFromPts(currentPts));
+
+    if(tapCenter){
+      tapDot.setAttribute('cx', tapCenter[0]);
+      tapDot.setAttribute('cy', tapCenter[1]);
+      tapDot.setAttribute('opacity','1');
+      tapLbl.setAttribute('x', tapCenter[0]+0.25);
+      tapLbl.setAttribute('y', tapCenter[1]+0.35);
+      tapLbl.setAttribute('opacity','1');
+    } else {
+      tapDot.setAttribute('opacity','0');
+      tapLbl.setAttribute('opacity','0');
+    }
+    renderSeq();
+  }
+
+  // =====================
+  // Math ops
+  // =====================
+  function translatePts(pts, dx, dy){ return pts.map(([x,y])=>[x+dx,y+dy]); }
+
+  function rotatePts(pts, deg, cx, cy){
+    const a = deg*Math.PI/180;
+    const c = Math.cos(a), s = Math.sin(a);
+    return pts.map(([x,y])=>{
+      const xr=x-cx, yr=y-cy;
+      const x2 = xr*c - yr*s;
+      const y2 = xr*s + yr*c;
+      return [x2+cx, y2+cy];
+    });
+  }
+
+  function reflectAxis(pts, axis){
+    if(axis==='x') return pts.map(([x,y])=>[x,-y]);
+    if(axis==='y') return pts.map(([x,y])=>[-x,y]);
+    return pts;
+  }
+
+  function reflectCustom(pts, type, ab){
+    if(type==='y_eq_x') return pts.map(([x,y])=>[y,x]);
+    if(type==='y_eq_negx') return pts.map(([x,y])=>[-y,-x]);
+    if(type==='vertical'){
+      const a=ab;
+      return pts.map(([x,y])=>[2*a-x, y]);
+    }
+    if(type==='horizontal'){
+      const b=ab;
+      return pts.map(([x,y])=>[x, 2*b-y]);
+    }
+    return pts;
+  }
+
+  // =====================
+  // UI actions
+  // =====================
+  function doTranslate(){
+    if(log.frozen) return;
+    const dx = parseFloat(document.getElementById('dx').value||0);
+    const dy = parseFloat(document.getElementById('dy').value||0);
+    currentPts = translatePts(currentPts, dx, dy);
+    seq.push({type:'translate', label:`Translate <${dx},${dy}>`, undo:(pts)=>translatePts(pts,-dx,-dy)});
+    pushEvent('translate',{dx,dy});
+    redraw();
+    updateRubric();
+  }
+
+  const ang = document.getElementById('ang');
+  const angVal = document.getElementById('angVal');
+  ang.addEventListener('input',()=>{ angVal.textContent = `${ang.value} deg`; });
+
+  function doRotate(){
+    if(log.frozen) return;
+    const deg = parseFloat(ang.value);
+    const mode = document.getElementById('centerSel').value;
+
+    let c;
+    if(mode==='origin') c=[0,0];
+    else if(mode==='centroid') c=centroid(currentPts);
+    else c = tapCenter || [0,0];
+
+    currentPts = rotatePts(currentPts, deg, c[0], c[1]);
+    seq.push({
+      type:'rotate',
+      label:`Rotate ${deg} deg about (${round1(c[0])},${round1(c[1])})`,
+      undo:(pts)=>rotatePts(pts, -deg, c[0], c[1])
+    });
+    pushEvent('rotate',{deg, cx:c[0], cy:c[1], mode});
+    redraw();
+    updateRubric();
+  }
+
+  function doReflect(which){
+    if(log.frozen) return;
+    if(which==='x' || which==='y'){
+      currentPts = reflectAxis(currentPts, which);
+      seq.push({type:'reflect', label:`Reflect over ${which}-axis`, undo:(pts)=>reflectAxis(pts, which)});
+      pushEvent('reflect_axis',{axis:which});
+    } else {
+      const t = document.getElementById('lineSel').value;
+      const ab = parseFloat(document.getElementById('ab').value||0);
+      currentPts = reflectCustom(currentPts, t, ab);
+      const labelMap = {
+        y_eq_x:'Reflect over y=x',
+        y_eq_negx:'Reflect over y=-x',
+        vertical:`Reflect over x=${ab}`,
+        horizontal:`Reflect over y=${ab}`
+      };
+      seq.push({type:'reflect', label:labelMap[t] || 'Reflect', undo:(pts)=>reflectCustom(pts, t, ab)});
+      pushEvent('reflect_custom',{line:t, ab});
+    }
+    redraw();
+    updateRubric();
+  }
+
+  function undo(){
+    if(seq.length===0 || log.frozen) return;
+    const last = seq.pop();
+    currentPts = last.undo(currentPts);
+    pushEvent('undo',{last:last.type});
+    redraw();
+    updateRubric();
+  }
+
+  function resetAll(){
+    if(log.frozen) return;
+    currentPts = basePts.map(p=>[...p]);
+    targetPts = makeTarget();
+    seq = [];
+    tapCenter = null;
+    pushEvent('reset');
+    setStatus('Tip: Start with a translation to get close, then rotate/reflect.', '');
+    redraw();
+    updateRubric();
+  }
+
+  // =====================
+  // Tap center conversion
+  // =====================
+  function svgToMath(evt){
+    // SVG user coords are y-down; our world is y-up (scale(1,-1)), so invert y.
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const ctm = svg.getScreenCTM().inverse();
+    const p = pt.matrixTransform(ctm);
+    return [ Math.round(p.x), Math.round(-p.y) ];
+  }
+
+  svg.addEventListener('click',(e)=>{
+    const mode = document.getElementById('centerSel').value;
+    if(mode!=='tap') return;
+    tapCenter = svgToMath(e);
+    pushEvent('tap_center',{x:tapCenter[0],y:tapCenter[1]});
+    setStatus(`Center set at (${tapCenter[0]},${tapCenter[1]}). Now rotate.`, '');
+    redraw();
+  });
+
+  // =====================
+  // Matching / feedback
+  // =====================
+  function rmsError(a,b){
+    let s=0;
+    for(let i=0;i<a.length;i++){
+      const dx=a[i][0]-b[i][0];
+      const dy=a[i][1]-b[i][1];
+      s += dx*dx + dy*dy;
+    }
+    return Math.sqrt(s/a.length);
+  }
+
+  function checkMatch(){
+    const err = rmsError(currentPts, targetPts);
+    pushEvent('check',{err});
+    if(err < 0.01){
+      setStatus('OK: Matched! Your image lands on the target.', 'good');
+    } else {
+      setStatus(`Not yet. Distance-to-target score: ${round1(err)} (smaller is better).`, '');
+    }
+    updateRubric();
+  }
+
+  function setStatus(text, cls){
+    const s = document.getElementById('statusMsg');
+    s.textContent = text;
+    s.style.color = (cls==='good') ? 'var(--good)' : 'var(--muted)';
+  }
+
+  // =====================
+  // One-line explanation
+  // =====================
+  function submitExplain(){
+    const v = document.getElementById('explain').value;
+    log.explain = v || null;
+    pushEvent('explain',{value:v});
+    const m = document.getElementById('explainMsg');
+    if(v==='both'){
+      m.textContent = 'OK: Correct: rigid motions preserve lengths AND angles (congruence).';
+      m.style.color = 'var(--good)';
+    } else if(!v){
+      m.textContent = 'Pick an answer.';
+      m.style.color = 'var(--bad)';
+    } else {
+      m.textContent = 'Almost. Rigid motions preserve BOTH.';
+      m.style.color = 'var(--bad)';
+    }
+    updateRubric();
+  }
+
+  // =====================
+  // Teacher controls
+  // =====================
+  function unlockHint(){
+    log.hintsUnlocked=true;
+    pushEvent('teacher_hint');
+    setStatus('Hint: Try (1) translate, (2) rotate about centroid, (3) reflect if needed.', '');
+  }
+
+  function freezeAll(){
+    log.frozen = !log.frozen;
+    pushEvent('teacher_freeze',{frozen:log.frozen});
+    alert(log.frozen ? 'Frozen: actions paused.' : 'Unfrozen.');
+  }
+
+  function exportLog(){
+    updateRubric();
+    const out = { ...log, sequence: seq.map(s=>s.label), score: document.getElementById('total').textContent };
+    const json = JSON.stringify(out, null, 2);
+    document.getElementById('logOut').textContent = json;
+    try{
+      const blob = new Blob([json], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'rigid_motions_log.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }catch(e){}
+  }
+
+  // =====================
+  // Rubric (8 points)
+  // =====================
+  function setEv(id, ok, text){
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = ok ? 'ok' : 'no';
+  }
+
+  function countToolTypes(){
+    const set=new Set(seq.map(s=>s.type));
+    return set.size;
+  }
+
+  function updateRubric(){
+    const err = rmsError(currentPts, targetPts);
+    let pA=0;
+    if(err < 2) pA=1;
+    if(err < 1) pA=2;
+    if(err < 0.3) pA=3;
+    if(err < 0.01) pA=4;
+    document.getElementById('ptA').textContent = String(pA);
+    setEv('evA', err<0.01, err<0.01 ? 'Exact match' : `Error ${round1(err)}`);
+
+    const toolTypes = countToolTypes();
+    const okB = toolTypes >= 2;
+    const pB = toolTypes >= 3 ? 2 : (toolTypes >= 2 ? 1 : 0);
+    document.getElementById('ptB').textContent = String(pB);
+    setEv('evB', okB, `${toolTypes} tool type(s)`);
+
+    const pC = (err<0.01 && seq.length<=4) ? 1 : 0;
+    document.getElementById('ptC').textContent = String(pC);
+    setEv('evC', pC===1, pC===1 ? 'Matched in <=4 moves' : `Moves: ${seq.length}`);
+
+    const pD = (log.explain==='both') ? 1 : 0;
+    document.getElementById('ptD').textContent = String(pD);
+    setEv('evD', pD===1, log.explain ? `Answer: ${log.explain}` : 'Not answered');
+
+    document.getElementById('total').textContent = String(pA+pB+pC+pD);
+
+    // Also update lab tasks if present
+    try{ updateTasksUI(); }catch(e){}
+  }
+
+  // =====================
+  // Sequence list
+  // =====================
+  function renderSeq(){
+    const box = document.getElementById('seqList');
+    box.innerHTML='';
+    if(seq.length===0){
+      const d=document.createElement('div');
+      d.className='item';
+      d.innerHTML='<span class="mini">No moves yet</span><span class="kbd">-</span>';
+      box.appendChild(d);
+      return;
+    }
+    for(let i=seq.length-1;i>=0;i--){
+      const it=seq[i];
+      const d=document.createElement('div');
+      d.className='item';
+      d.innerHTML=`<span>${it.label}</span><span class="kbd">#${i+1}</span>`;
+      box.appendChild(d);
+    }
+  }
+
+  // =====================
+  // Lab tasks (5)
+  // =====================
+  function setTask(id, ok){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.textContent = ok ? 'Complete' : 'Not checked';
+    el.style.color = ok ? 'var(--good)' : '#334155';
+    el.style.fontWeight = ok ? '800' : '600';
+  }
+
+  function task1Matched(){
+    return rmsError(currentPts, targetPts) < 0.01;
+  }
+
+  function task2TwoTypes(){
+    return countToolTypes() >= 2;
+  }
+
+  function checkTask3(){
+    const len = document.getElementById('inv_len')?.checked;
+    const ang = document.getElementById('inv_ang')?.checked;
+    const area = document.getElementById('inv_area')?.checked;
+    const orient = document.getElementById('inv_orient')?.checked;
+
+    // Correct set: lengths, angles, area; orientation is NOT preserved under reflection.
+    const ok = !!len && !!ang && !!area && !orient;
+    setTask('t3', ok);
+    const m = document.getElementById('taskMsg');
+    if(m) m.textContent = ok ? 'Task 3 OK.' : 'Task 3: Rigid motions preserve lengths, angles, and area. Reflection flips orientation.';
+    updateRubric();
+  }
+
+  function containsAll(text, words){
+    const t = (text||'').toLowerCase();
+    return words.every(w => t.includes(w));
+  }
+
+  function checkTask4(){
+    const a = document.getElementById('proof_moves')?.value || '';
+    const b = document.getElementById('proof_preserve')?.value || '';
+    const c = document.getElementById('proof_claim')?.value || '';
+
+    const okMoves = a.trim().length >= 8; // minimal effort
+    const okPres  = containsAll(b, ['length']) && containsAll(b, ['angle']);
+    const okClaim = containsAll(c, ['congruent']) || containsAll(c, ['congru']);
+
+    const ok = okMoves && okPres && okClaim;
+    setTask('t4', ok);
+    const m = document.getElementById('taskMsg');
+    if(m) m.textContent = ok ? 'Task 4 OK.' : "Task 4 hint: mention the moves, say 'lengths and angles', and conclude 'congruent'.";
+    updateRubric();
+  }
+
+  function checkTask5(){
+    const pick = document.querySelector('input[name="ord"]:checked')?.value;
+    const why = document.getElementById('ord_why')?.value || '';
+
+    const okPick = (pick === 'no');
+    const okWhy  = why.trim().length >= 6;
+
+    const ok = okPick && okWhy;
+    setTask('t5', ok);
+    const m = document.getElementById('taskMsg');
+    if(m) m.textContent = ok ? 'Task 5 OK.' : 'Task 5 hint: usually NO. Many transformations do not commute (order can change the result).';
+    updateRubric();
+  }
+
+  function checkAllTasks(){
+    const ok1 = task1Matched();
+    const ok2 = task2TwoTypes();
+    setTask('t1', ok1);
+    setTask('t2', ok2);
+
+    const m = document.getElementById('taskMsg');
+    if(m){
+      if(ok1 && ok2) m.textContent = 'Nice. Now complete Tasks 3-5.';
+      else if(!ok1 && ok2) m.textContent = 'You used multiple tools. Keep going until the shapes match exactly.';
+      else if(ok1 && !ok2) m.textContent = 'Matched, but try again using at least two different motion types.';
+      else m.textContent = 'Not matched yet. Use the tools and then press Check.';
+    }
+    updateRubric();
+  }
+
+  function updateTasksUI(){
+    // passive updates
+    setTask('t1', task1Matched());
+    setTask('t2', task2TwoTypes());
+  }
+
+  // Start
+  window.addEventListener('load', ()=>{
+    pushEvent('page_loaded');
+    redraw();
+    updateRubric();
+    updateTasksUI();
+  });
+</script>
+</body>
+</html>
+
